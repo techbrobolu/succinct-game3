@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Succinct Logo Sliding Puzzle</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f0f4f8;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 10px;
+      font-size: 2rem;
+    }
+    #controls {
+      margin-bottom: 20px;
+    }
+    select, button {
+      padding: 10px;
+      margin: 5px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+      background: #4caf50;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    select {
+      background: #2196f3;
+    }
+    select:hover, button:hover {
+      opacity: 0.8;
+    }
+    #puzzle {
+      width: 90vmin;
+      height: 90vmin;
+      max-width: 400px;
+      max-height: 400px;
+      margin: 20px auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-gap: 2px;
+      background: #333;
+      border: 5px solid #333;
+      position: relative;
+    }
+    .tile {
+      background-image: url('https://cdn.openai.com/chatgpt/production/succinct_logo_sample.png'); /* Replace with real Succinct logo URL */
+      background-size: 400px 400px;
+      background-repeat: no-repeat;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: transparent;
+    }
+    .empty {
+      background: #f0f4f8;
+      cursor: default;
+    }
+    #info {
+      margin-top: 15px;
+      font-size: 18px;
+    }
+    #popup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      visibility: hidden;
+      opacity: 0;
+      transform: scale(0.7);
+      transition: all 0.5s ease;
+    }
+    #popup.show {
+      visibility: visible;
+      opacity: 1;
+      transform: scale(1);
+    }
+    #popupContent {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      text-align: center;
+      animation: bounce 1s infinite alternate;
+    }
+    #popupContent button {
+      margin: 10px;
+      padding: 12px 24px;
+      font-size: 18px;
+      border-radius: 8px;
+    }
+    @keyframes bounce {
+      from { transform: translateY(0px); }
+      to { transform: translateY(-10px); }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Succinct Logo Sliding Puzzle</h1>
+
+<div id="controls">
+  <select id="difficulty">
+    <option value="easy">Let's pruv it (Easy)</option>
+    <option value="normal">Proof verified (Normal)</option>
+    <option value="hard">Pruv Ur luv (Difficult)</option>
+  </select>
+  <button onclick="startGame()">Start Game</button>
+  <button onclick="toggleMusic()">Toggle Music</button>
+</div>
+
+<div id="info">
+  Moves: <span id="moves">0</span> | Time: <span id="timer">0</span> seconds
+</div>
+
+<div id="puzzle"></div>
+
+<div id="popup">
+  <div id="popupContent">
+    <h2>Luv pruven successfully!</h2>
+    <button onclick="startGame(); hidePopup();">Pruv new luv</button>
+    <button onclick="hidePopup()">Gib up Pruving</button>
+  </div>
+</div>
+
+<audio id="bgMusic" loop preload="auto">
+  <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_3bfb8d5cf7.mp3" type="audio/mpeg">
+</audio>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script>
+  const puzzle = document.getElementById('puzzle');
+  const movesCounter = document.getElementById('moves');
+  const timerDisplay = document.getElementById('timer');
+  const popup = document.getElementById('popup');
+  const bgMusic = document.getElementById('bgMusic');
+
+  let tiles = [];
+  let emptyIndex = 0;
+  let moves = 0;
+  let timer = 0;
+  let interval = null;
+
+  function startGame() {
+    hidePopup();
+    clearInterval(interval);
+    tiles = [...Array(15).keys()].map(x => x + 1);
+    tiles.push('');
+    shuffleTiles();
+    drawTiles();
+    moves = 0;
+    movesCounter.textContent = moves;
+    timer = 0;
+    timerDisplay.textContent = timer;
+    interval = setInterval(() => {
+      timer++;
+      timerDisplay.textContent = timer;
+    }, 1000);
+  }
+
+  function shuffleTiles() {
+    const difficulty = document.getElementById('difficulty').value;
+    let shuffleTimes = difficulty === 'easy' ? 30 : difficulty === 'normal' ? 70 : 150;
+
+    for (let i = 0; i < shuffleTimes; i++) {
+      const neighbors = getMovableTiles();
+      const moveTile = neighbors[Math.floor(Math.random() * neighbors.length)];
+      move(moveTile, false);
+    }
+  }
+
+  function drawTiles() {
+    puzzle.innerHTML = '';
+    tiles.forEach((tile, index) => {
+      const div = document.createElement('div');
+      div.className = 'tile';
+      if (tile === '') {
+        div.classList.add('empty');
+        emptyIndex = index;
+      } else {
+        const x = ((tile - 1) % 4) * -100;
+        const y = (Math.floor((tile - 1) / 4)) * -100;
+        http://div.style.backgroundPosition = `${x}px ${y}px`;
+        div.addEventListener('click', () => move(index, true));
+      }
+      puzzle.appendChild(div);
+    });
+  }
+
+  function getMovableTiles() {
+    const moves = [];
+    if (emptyIndex % 4 !== 0) moves.push(emptyIndex - 1);
+    if (emptyIndex % 4 !== 3) moves.push(emptyIndex + 1);
+    if (emptyIndex >= 4) moves.push(emptyIndex - 4);
+    if (emptyIndex < 12) moves.push(emptyIndex + 4);
+    return moves;
+  }
+
+  function move(index, countMove) {
+    if (getMovableTiles().includes(index)) {
+      [tiles[emptyIndex], tiles[index]] = [tiles[index], tiles[emptyIndex]];
+      emptyIndex = index;
+      drawTiles();
+      if (countMove) {
+        moves++;
+        movesCounter.textContent = moves;
+      }
+      checkVictory();
+    }
+  }
+
+  function checkVictory() {
+    const isCorrect = tiles.slice(0, 15).every((val, idx) => val === idx + 1);
+    if (isCorrect &amp;&amp; emptyIndex === 15) {
+      clearInterval(interval);
+      celebrateVictory();
+    }
+  }
+
+  function celebrateVictory() {
+    popup.classList.add('show');
+    fireConfetti();
+  }
+
+  function showPopup() {
+    popup.classList.add('show');
+  }
+
+  function hidePopup() {
+    popup.classList.remove('show');
+  }
+
+  function toggleMusic() {
+    if (bgMusic.paused) {
+      http://bgMusic.play();
+    } else {
+      bgMusic.pause();
+    }
+  }
+
+  function fireConfetti() {
+    confetti({
+      particleCount: 150,
+      spread: 60,
+      origin: { y: 0.6 }
+    });
+  }
+</script>
+
+</body>
+</html>
